@@ -36,13 +36,32 @@ func Handshake(cfg *ReplicationConfig) (net.Conn, error) {
 
 	lpCmd := EncodeCommand("REPLCONF", "listening-port", cfg.SelfPort)
 	_, err = conn.Write(lpCmd)
-		if err != nil {
+	if err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("failed to send REPLCONF: %w", err)
 	}
 
+	_, err = conn.Read(buf)
+	if err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("failed to read PSYNC response: %w", err)
+	}
+
 	psyncCmd := EncodeCommand("REPLCONF", "capa", "psync2")
 	_, err = conn.Write(psyncCmd)
+	if err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("failed to send PSYNC: %w", err)
+	}
+
+	_, err = conn.Read(buf)
+	if err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("failed to read PSYNC response: %w", err)
+	}
+
+	psync2Cmd := EncodeCommand("PSYNC", "?", "-1")
+	_, err = conn.Write(psync2Cmd)
 	if err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("failed to send PSYNC: %w", err)

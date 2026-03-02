@@ -135,3 +135,10 @@ func EncodeXREADResponse(input map[string][]Stream, keys []string) []byte {
 
 	return buf.Bytes()
 }
+
+func EncodeRDBResponse(content []byte) []byte {
+	length := strconv.Itoa(len(content))
+	// Redis replication uses $<length>\r\n + raw bytes (no trailing \r\n)
+	res := "$" + length + "\r\n" + string(content)
+	return []byte(res)
+}

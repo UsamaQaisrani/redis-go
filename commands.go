@@ -508,3 +508,19 @@ func (s *Server) Info(args []string) []byte {
 	res += "master_repl_offset" + ":" + strconv.FormatInt(s.SType.master_repl_offset, 10) + "\r\n"
 	return EncodeBulkString(res)
 }
+
+func (s *Server) ReplConf(args []string) []byte {
+	if len(args) < 2 {
+		return EncodeSimpleError("ERR wrong number of arguments for 'REPLCONF' command")
+	}
+
+	return EncodeSimpleString("OK")
+}
+
+func (s *Server) PSync(args []string) []byte {
+	s.SType.master_replid = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"
+	res := "FULLRESYNC " + s.SType.master_replid + " 0"
+	s.Conn.Write(EncodeSimpleString(res))
+
+	return EncodeRDBResponse(readRDB()) 
+}

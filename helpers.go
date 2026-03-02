@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"strconv"
@@ -216,4 +217,23 @@ func (s *Server) maybeQueue(cmd string, args []string, fn func() []byte) []byte 
 		return EncodeSimpleString("QUEUED")
 	}
 	return fn()
+}
+
+func readRDB() []byte {
+	content := []byte("UkVESVMwMDEx+glyZWRpcy12ZXIFNy4yLjD6CnJlZGlzLWJpdHPAQPoFY3RpbWXCbQi8ZfoIdXNlZC1tZW3CsMQQAPoIYW9mLWJhc2XAAP/wbjv+wP9aog==")
+	decodedContent, err := decodeBase64(content)
+	if err != nil {
+		fmt.Println("Error decoding RDB content:", err)
+		return nil
+	}
+	return decodedContent
+}
+
+func decodeBase64(encoded []byte) ([]byte, error) {
+	dec := make([]byte, base64.StdEncoding.DecodedLen(len(encoded)))
+	n, err := base64.StdEncoding.Decode(dec, encoded)
+	if err != nil {
+		return nil, err
+	}
+	return dec[:n], nil
 }
