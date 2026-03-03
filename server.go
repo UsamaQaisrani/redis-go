@@ -15,20 +15,24 @@ func runServer(ip string, port int, replica bool) {
 		os.Exit(1)
 	}
 	defer l.Close()
+	shared := Server{SType: ServerType{ip: ip, port: port}}
+	if replica {
+		shared.SType.Role = "slave"
+	} else {
+		shared.SType.Role = "master"
+	}
 	for {
-		server := Server{SType: ServerType{ip: ip, port: port}}
-		if replica {
-			server.SType.Role = "slave"
-		} else {
-			server.SType.Role = "master"
-		}
 		conn, err := l.Accept()
-		server.Conn = conn
 		if err != nil {
-			fmt.Println("Error accepting response = s.Connection: ", err.Error())
+			fmt.Println("Error accepting connection:", err.Error())
 			os.Exit(1)
 		}
-		go server.handleConn()
+		s := &Server{
+			Conn:   conn,
+			SType:  shared.SType,
+			Master: &shared,
+		}
+		go s.handleConn()
 	}
 }
 

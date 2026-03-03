@@ -30,6 +30,7 @@ func (s *Server) Set(args []string) []byte {
 	}
 		data.Content = val
 		DB.Store(key, data)
+		s.Propagate("SET", args)
 		return EncodeSimpleString("OK")
 	})
 }
@@ -90,6 +91,7 @@ func (s *Server) RPush(args []string) []byte {
 
 		data.Content = list
 		DB.Store(key, data)
+		s.Propagate("RPUSH", args)
 		return EncodeInt(len(list))
 	})
 }
@@ -152,6 +154,7 @@ func (s *Server) LPush(args []string) []byte {
 	}
 		data.Content = list
 		DB.Store(key, data)
+		s.Propagate("LPUSH", args)
 		return EncodeInt(len(list))
 	})
 }
@@ -188,6 +191,7 @@ func (s *Server) LPop(args []string) []byte {
 		poppedItem := list[:itemsToRemove]
 		data.Content = list[itemsToRemove:]
 		DB.Store(key, data)
+		s.Propagate("LPOP", args)
 		if len(poppedItem) > 1 {
 			return EncodeList(poppedItem)
 		}
@@ -302,6 +306,10 @@ func (s *Server) XADD(args []string) []byte {
 		streams[key] = append(streams[key], Stream{StreamID: newId, KeyValuePairs: pairs})
 		data.Content = streams
 		DB.Store(key, data)
+		propArgs := make([]string, len(args))
+		copy(propArgs, args)
+		propArgs[1] = newId
+		s.Propagate("XADD", propArgs)
 		return EncodeBulkString(newId)
 	})
 }
@@ -456,6 +464,7 @@ func (s *Server) Incr(args []string) []byte {
 		numVal++
 		data.Content = strconv.Itoa(numVal)
 		DB.Store(key, data)
+		s.Propagate("INCR", args)
 		return EncodeInt(numVal)
 	})
 }
@@ -521,6 +530,21 @@ func (s *Server) PSync(args []string) []byte {
 	s.SType.master_replid = "8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb"
 	res := "FULLRESYNC " + s.SType.master_replid + " 0"
 	s.Conn.Write(EncodeSimpleString(res))
-
-	return EncodeRDBResponse(readRDB()) 
+	rdbResponse := EncodeRDBResponse(readRDB())
+	if s.Master != nil {
+		s.Master.AddReplica(s.Conn)
+	}
+	return rdbResponse
 }
+
+func (s *Server) Propagate(cmd string, args []string) {
+	if s.Master == nil || s.SType.Role != "master" {
+		return
+	}
+	encoded := EncodeCommand(append([]string{cmd}, args...)...)
+	for _, replica := range s.Master.Replicas() {
+		replica.Write(encoded)
+	}
+}
+
+

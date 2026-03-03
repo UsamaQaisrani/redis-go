@@ -12,11 +12,25 @@ type DictStringVal struct {
 }
 
 type Server struct {
-	Conn    net.Conn
-	mu      sync.Mutex
-	BLOCKQ  []Command
-	TxQueue [][]string
-	SType   ServerType
+	Conn     net.Conn
+	mu       sync.Mutex
+	BLOCKQ   []Command
+	TxQueue  [][]string
+	SType    ServerType
+	replicas []net.Conn
+	Master   *Server
+}
+
+func (s *Server) AddReplica(conn net.Conn) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.replicas = append(s.replicas, conn)
+}
+
+func (s *Server) Replicas() []net.Conn {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]net.Conn{}, s.replicas...)
 }
 
 type Data struct {
